@@ -1,0 +1,742 @@
+<!-- run http-server in terminal-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brdle - Broadway Song Guessing Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #121212;
+            color: #ffffff;
+            overscroll-behavior: none;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #282828; }
+        ::-webkit-scrollbar-thumb { background: #535353; border-radius: 3px;}
+        ::-webkit-scrollbar-thumb:hover { background: #757575; }
+
+        #gameTitle { font-family: 'Montserrat', sans-serif; font-weight: 700; letter-spacing: 0.05em; }
+        .icon-placeholder { width: 24px; height: 24px; border: 1px solid #535353; border-radius: 4px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; color: #b3b3b3; }
+
+        .guess-box {
+            background-color: #333333; border: 2px solid #535353;
+            height: 3.5rem; width: 3.5rem; margin: 0.25rem; border-radius: 4px;
+            display: flex; align-items: center; justify-content: center;
+            color: #fff;
+            transition: background-color 0.3s, border-color 0.3s;
+            font-size: 0.65rem;
+            line-height: 0.85rem;
+            padding: 0.25rem;
+            text-align: center;
+            overflow: hidden;
+            word-break: break-all;
+        }
+        .guess-box.correct { background-color: #4CAF50; border-color: #388E3C; } /* Green */
+        .guess-box.partial { background-color: #FFC107; border-color: #FFA000; color: #333; } /* Yellow */
+        .guess-box.incorrect { background-color: #F44336; border-color: #D32F2F; } /* Red */
+        .guess-box.skipped { background-color: #607D8B; border-color: #455A64; } /* Blue Grey for skipped */
+
+        #playPauseButton { background-color: #795548; color: white; border-radius: 50%; width: 64px; height: 64px; display: flex; align-items: center; justify-content: center; transition: background-color 0.2s ease-in-out, transform 0.1s ease; }
+        #playPauseButton:hover:not(:disabled) { background-color: #8D6E63; transform: scale(1.05); }
+        #playPauseButton:disabled { background-color: #535353; cursor: not-allowed; }
+
+        #guessInput { background-color: #282828; color: #ffffff; border: 1px solid #535353; padding-left: 2.5rem; }
+        #guessInput::placeholder { color: #b3b3b3; }
+        .input-icon { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); color: #b3b3b3; }
+
+        .action-button { background-color: #535353; color: #ffffff; padding: 0.75rem 1.5rem; border-radius: 4px; font-weight: 600; transition: background-color 0.2s ease-in-out; border: none; }
+        .action-button:hover:not(:disabled) { background-color: #757575; }
+        .action-button.submit { background-color: #3ea6ff; }
+        .action-button.submit:hover:not(:disabled) { background-color: #1a8cff; }
+        .action-button:disabled { background-color: #333; color: #888; cursor: not-allowed; }
+
+        .hidden { display: none !important; }
+        #messageArea { min-height: 24px; font-size: 0.875rem; color: #b3b3b3; }
+        #messageArea.success { color: #4CAF50; }
+        #messageArea.error { color: #f44336; }
+        #messageArea.reveal { color: #ffeb3b; }
+
+        #inputControlsBar { position: fixed; bottom: 0; left: 0; right: 0; background-color: #181818; padding: 1rem; border-top: 1px solid #282828; display: flex; flex-direction: column; gap: 0.75rem; z-index: 20; }
+        #gameContent { padding-bottom: 150px; } /* Increased padding to ensure content is not overlapped by the fixed bar */
+
+        /* Autocomplete dropdown styling */
+        #autocompleteDropdown {
+            position: absolute;
+            bottom: 100%; /* Position above the input bar */
+            left: 0;
+            right: 0;
+            max-height: 20rem; /* Increased max-height */
+            overflow-y: auto;
+            background-color: #282828;
+            border: 1px solid #535353;
+            border-bottom: none; /* Remove bottom border as it's above */
+            border-radius: 0.375rem 0.375rem 0 0; /* Rounded top corners */
+            z-index: 30; /* Ensure it's above other elements */
+        }
+        .autocomplete-item {
+            padding: 0.75rem 1rem;
+            color: #e0e0e0;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+        .autocomplete-item:hover {
+            background-color: #535353;
+        }
+        .autocomplete-item .song-title {
+            font-weight: 600;
+        }
+        .autocomplete-item .song-source {
+            font-size: 0.75rem;
+            color: #b3b3b3;
+            margin-left: 0.5rem;
+        }
+        #musicalsFilterSection { background-color: #1e1e1e; padding: 1rem; margin-bottom:1rem; border-radius: 8px; transition: max-height 0.3s ease-out, opacity 0.3s ease-out, padding 0.3s ease-out, margin 0.3s ease-out, border-width 0.3s ease-out; overflow: hidden; }
+        #musicalsFilterSection.collapsed { max-height: 0 !important; opacity: 0 !important; padding-top: 0 !important; padding-bottom: 0 !important; margin-bottom: 0 !important; border-width: 0px !important; }
+        #musicalsFilterSection h3 { font-size: 1.125rem; font-weight:600; margin-bottom: 0.75rem; color: #e0e0e0;}
+        #musicalsFilterContainer { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.5rem; max-height: 150px; overflow-y: auto; padding-right: 0.5rem; }
+        #musicalsFilterContainer label { display: flex; align-items: center; font-size: 0.875rem; color: #d0d0d0; background-color: #282828; padding: 0.5rem; border-radius: 4px; cursor:pointer; }
+        #musicalsFilterContainer input[type="checkbox"] { margin-right: 0.5rem; accent-color: #3ea6ff; }
+        .filter-buttons { margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: space-between; }
+    </style>
+</head>
+<body class="flex flex-col items-center justify-center min-h-screen text-sm md:text-base">
+
+    <div id="gameContainer" class="w-full max-w-2xl mx-auto">
+        <!-- Header -->
+        <header class="flex items-center justify-between p-4 sticky top-0 bg-[#121212] z-10 border-b border-[#282828]">
+            <div class="flex items-center space-x-2">
+                <button id="toggleFiltersBtn" class="action-button text-xs py-1 px-2">Filters</button>
+            </div>
+            <h1 id="gameTitle" class="text-2xl md:text-3xl font-bold tracking-wider">Brdle</h1>
+            <div class="flex items-center space-x-2">
+                <p id="scoreDisplay" class="text-sm text-gray-400">Score: 0</p>
+                <!-- Placeholder for stats icon -->
+                <div class="icon-placeholder">📊</div>
+            </div>
+        </header>
+        <p id="loadingStatus" class="text-xs text-center py-1 bg-[#181818] text-yellow-300">Loading songs...</p>
+
+        <!-- Musicals Filter Section -->
+        <div id="musicalsFilterSection" class="collapsed">
+            <h3>Filter Musicals</h3>
+            <div id="musicalsFilterContainer">
+                <!-- Musical filter checkboxes will be populated here by JS -->
+            </div>
+            <div class="filter-buttons">
+                <div>
+                    <button id="selectAllMusicalsBtn" class="action-button text-xs py-1 px-2">Select All</button>
+                    <button id="deselectAllMusicalsBtn" class="action-button text-xs py-1 px-2 ml-2">Deselect All</button>
+                </div>
+                <button id="applyFiltersBtn" class="action-button submit text-sm py-2 px-4">Apply & New Game</button>
+            </div>
+        </div>
+
+        <!-- Main Game Content -->
+        <div id="gameContent" class="p-4 flex flex-col items-center justify-center">
+            <!-- Guess Attempt Boxes -->
+            <div id="guessAttemptBoxesContainer" class="flex justify-center my-6 md:my-8">
+                <!-- Guess boxes will be populated here by JS -->
+            </div>
+
+            <!-- Audio Player and Controls -->
+            <div class="text-center my-8 md:my-12">
+                 <p id="initialPrompt" class="text-gray-400 mb-6">Tap to hear the first snippet!</p>
+                <button id="playPauseButton" title="Play Snippet" disabled>
+                    <!-- Play Icon SVG -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-play-fill" viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>
+                </button>
+                <!-- Progress Bar for audio snippet -->
+                <div id="progressBarContainer" class="w-32 h-1 bg-gray-700 rounded-full mx-auto mt-3 overflow-hidden">
+                    <div id="progressBar" class="h-full bg-green-500 transition-all duration-100 ease-linear"></div>
+                </div>
+            </div>
+
+            <!-- Message Area -->
+            <div id="messageArea" class="text-center my-4 h-6">
+                <!-- Messages to the user will appear here -->
+            </div>
+        </div>
+
+        <!-- Input Controls Bar (Fixed at Bottom) -->
+        <div id="inputControlsBar">
+             <!-- Autocomplete Dropdown Wrapper -->
+             <div id="autocompleteWrapper" class="relative w-full max-w-lg mx-auto">
+                <div id="autocompleteDropdown" class="hidden">
+                    <!-- Autocomplete items will be populated here by JS -->
+                </div>
+                <!-- Guess Input Field -->
+                <div class="relative">
+                    <div class="input-icon">
+                        <!-- Search Icon SVG -->
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search" viewBox="0 0 16 16"><path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/></svg>
+                    </div>
+                    <input type="text" id="guessInput" placeholder="Enter song title..." class="w-full p-3 rounded-md text-sm" disabled>
+                </div>
+            </div>
+            <!-- Action Buttons: Skip & Submit -->
+            <div class="flex justify-center items-center space-x-2 w-full max-w-lg mx-auto">
+                <button id="skipButton" class="action-button flex-1" disabled>SKIP</button>
+                <button id="submitGuessButton" class="action-button submit flex-1" disabled>SUBMIT</button>
+            </div>
+             <!-- Next Song / Play Again Buttons -->
+             <div class="text-center mt-2">
+                <button id="nextSongButton" class="action-button bg-blue-500 hover:bg-blue-600 hidden">Next Song</button>
+                <button id="playAgainButton" class="action-button bg-green-500 hover:bg-green-600 hidden">Play Again?</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="audioPlayer"></audio>
+
+    <script>
+        // --- CONFIGURATION ---
+        const NUM_GUESSES_ALLOWED = 6;
+        const HINT_DURATIONS_DEFAULT = [1000, 2000, 4000, 7000, 11000, 16000]; // Durations in milliseconds
+        const AUDIO_EXTENSIONS = ['.mp3', '.wav', '.ogg', '.m4a']; // Supported audio file extensions
+        const DEFAULT_SELECTED_MUSICALS = [ // Pre-selected musicals on first load
+            "Hamilton", "The Book of Mormon", "Come From Away", "Dear Evan Hansen"
+        ].map(m => normalizeString(m)); // Normalized for consistent matching
+
+        // --- DOM ELEMENTS ---
+        const gameContainer = document.getElementById('gameContainer');
+        const loadingStatusEl = document.getElementById('loadingStatus');
+        const scoreDisplayEl = document.getElementById('scoreDisplay');
+        const messageAreaEl = document.getElementById('messageArea');
+        const playPauseButton = document.getElementById('playPauseButton');
+        const guessInput = document.getElementById('guessInput');
+        const submitGuessButton = document.getElementById('submitGuessButton');
+        const skipButton = document.getElementById('skipButton');
+        const nextSongButton = document.getElementById('nextSongButton');
+        const playAgainButton = document.getElementById('playAgainButton');
+        const guessAttemptBoxesContainer = document.getElementById('guessAttemptBoxesContainer');
+        const initialPromptEl = document.getElementById('initialPrompt');
+        const audioPlayer = document.getElementById('audioPlayer');
+        const autocompleteDropdown = document.getElementById('autocompleteDropdown');
+        const musicalsFilterSection = document.getElementById('musicalsFilterSection');
+        const musicalsFilterContainer = document.getElementById('musicalsFilterContainer');
+        const selectAllMusicalsBtn = document.getElementById('selectAllMusicalsBtn');
+        const deselectAllMusicalsBtn = document.getElementById('deselectAllMusicalsBtn');
+        const toggleFiltersBtn = document.getElementById('toggleFiltersBtn');
+        const applyFiltersBtn = document.getElementById('applyFiltersBtn');
+        const progressBar = document.getElementById('progressBar');
+
+        // --- GAME STATE VARIABLES ---
+        let currentSongIndex = 0;
+        let score = 0;
+        let currentHintLevel = 0;
+        let masterSongList = [];
+        let availableMusicals = [];
+        let selectedMusicals = new Set();
+        let shuffledSongs = [];
+        let playbackTimeoutId = null;
+        let currentGuessAttempt = 0;
+        let isPlayingFullSong = false;
+        let currentPlaybackMaxDurationMs = 0;
+        let progressBarAnimationId = null; // For requestAnimationFrame
+
+        // --- HELPER FUNCTIONS ---
+        function normalizeString(str) {
+            if (typeof str !== 'string') return "";
+            return str.trim().toLowerCase().replace(/[^\w\s()]/gi, '').replace(/\s+/g, ' ');
+        }
+
+        // --- UI INITIALIZATION & UPDATES ---
+        function createGuessAttemptBoxes() {
+            guessAttemptBoxesContainer.innerHTML = '';
+            for (let i = 0; i < NUM_GUESSES_ALLOWED; i++) {
+                const box = document.createElement('div');
+                box.classList.add('guess-box');
+                box.id = `guess-box-${i}`;
+                guessAttemptBoxesContainer.appendChild(box);
+            }
+        }
+
+        function updateGuessAttemptBox(attemptIndex, statusType, textToShow = "") {
+            const box = document.getElementById(`guess-box-${attemptIndex}`);
+            if (box) {
+                box.className = 'guess-box filled';
+                box.textContent = textToShow;
+                if (statusType === 'correct') box.classList.add('correct');
+                else if (statusType === 'partial') box.classList.add('partial');
+                else if (statusType === 'incorrect') box.classList.add('incorrect');
+                else if (statusType === 'skipped') box.classList.add('skipped');
+                if (textToShow.length > 10) { box.style.fontSize = "0.55rem"; box.style.lineHeight = "0.7rem"; }
+                else if (textToShow.length > 5) { box.style.fontSize = "0.65rem"; box.style.lineHeight = "0.85rem"; }
+                else { box.style.fontSize = "0.75rem"; box.style.lineHeight = "1rem"; }
+                box.title = textToShow;
+            }
+        }
+
+        function shuffleArray(array) {
+             for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+
+        // --- SONG LOADING & FILTERING ---
+        async function loadSongsFromFolder() {
+            loadingStatusEl.textContent = "Attempting to load songs from 'songs/' folder...";
+            try {
+                const response = await fetch('songs/');
+                if (!response.ok) { throw new Error(`Failed to fetch songs directory: ${response.statusText}`); }
+                const htmlText = await response.text();
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(htmlText, 'text/html');
+                const links = doc.querySelectorAll('a');
+                const loadedSongs = [];
+                const uniqueSources = new Set();
+                links.forEach(link => {
+                    const originalHref = link.getAttribute('href');
+                    if (!originalHref) return;
+                    const decodedHref = decodeURIComponent(originalHref);
+                    const hasValidExtension = AUDIO_EXTENSIONS.some(ext => decodedHref.toLowerCase().endsWith(ext));
+                    if (hasValidExtension) {
+                        const filenameWithoutPath = decodedHref.split('/').pop();
+                        const filenameWithoutExtension = filenameWithoutPath.substring(0, filenameWithoutPath.lastIndexOf('.'));
+                        const parts = filenameWithoutExtension.split(' - ');
+                        let source = "Unknown"; let title = filenameWithoutExtension;
+                        if (parts.length >= 2) { source = parts[0].trim(); title = parts.slice(1).join(' - ').trim(); }
+                        else if (parts.length === 1 && parts[0].trim() !== "") { title = parts[0].trim(); }
+                        if (title) {
+                             loadedSongs.push({ title, source, audioSrc: 'songs/' + originalHref, hintDurations: [...HINT_DURATIONS_DEFAULT] });
+                             uniqueSources.add(source);
+                        }
+                    }
+                });
+                if (loadedSongs.length === 0) {
+                    throw new Error("No audio files found. Ensure they are in a 'songs' folder and filenames are 'Musical - Song.mp3'.");
+                }
+                masterSongList = loadedSongs;
+                availableMusicals = Array.from(uniqueSources).sort();
+                renderMusicalFilters();
+                prepareAndStartGame();
+            } catch (error) {
+                console.error("Error loading songs:", error);
+                loadingStatusEl.textContent = `Error loading songs: ${error.message}`;
+                displayMessage("Could not load songs. Check console, folder structure, and filenames.", "error");
+                disableAllControls();
+                musicalsFilterSection.classList.add('collapsed');
+            }
+        }
+
+        function renderMusicalFilters() {
+            musicalsFilterContainer.innerHTML = ''; selectedMusicals.clear();
+            if (availableMusicals.length === 0) { musicalsFilterSection.classList.add('collapsed'); return; }
+            availableMusicals.forEach(musicalName => {
+                const label = document.createElement('label'); const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox'; const normalizedMusicalName = normalizeString(musicalName);
+                checkbox.value = musicalName; checkbox.id = `filter-${normalizedMusicalName.replace(/\s+/g, '-')}`;
+                if (DEFAULT_SELECTED_MUSICALS.includes(normalizedMusicalName)) { checkbox.checked = true; selectedMusicals.add(normalizedMusicalName); }
+                checkbox.addEventListener('change', (event) => {
+                    const selectedNameNormalized = normalizeString(event.target.value);
+                    if (event.target.checked) { selectedMusicals.add(selectedNameNormalized); }
+                    else { selectedMusicals.delete(selectedNameNormalized); }
+                });
+                label.appendChild(checkbox); label.appendChild(document.createTextNode(" " + musicalName));
+                musicalsFilterContainer.appendChild(label);
+            });
+        }
+        selectAllMusicalsBtn.addEventListener('click', () => {
+            musicalsFilterContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; selectedMusicals.add(normalizeString(cb.value)); });
+        });
+        deselectAllMusicalsBtn.addEventListener('click', () => {
+            musicalsFilterContainer.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; }); selectedMusicals.clear();
+        });
+        applyFiltersBtn.addEventListener('click', () => {
+            manualPauseSnippet(); prepareAndStartGame(); musicalsFilterSection.classList.add('collapsed');
+        });
+        toggleFiltersBtn.addEventListener('click', () => { musicalsFilterSection.classList.toggle('collapsed'); });
+
+        function prepareAndStartGame() {
+            manualPauseSnippet();
+            const playableSongs = masterSongList.filter(song => selectedMusicals.has(normalizeString(song.source)));
+            if (playableSongs.length === 0) {
+                shuffledSongs = []; displayMessage("No songs match the current filter. Please select some musicals and click 'Apply & New Game'.", "error");
+                loadingStatusEl.textContent = "No songs available for the selected filters."; disableAllControls(); playPauseButton.disabled = true; return;
+            }
+            shuffledSongs = [...playableSongs]; shuffleArray(shuffledSongs);
+            loadingStatusEl.textContent = `Game ready with ${shuffledSongs.length} songs.`;
+            startGame();
+        }
+
+        // --- GAME LOGIC ---
+        function startGame() {
+            if (shuffledSongs.length === 0) {
+                displayMessage("No songs available. Adjust filters & click 'Apply & New Game'.", "error");
+                disableAllControls(); playPauseButton.disabled = true; return;
+            }
+            score = 0; currentSongIndex = 0; updateScoreDisplay();
+            loadSong();
+            playAgainButton.classList.add('hidden'); nextSongButton.classList.add('hidden');
+            enableAllControls(); initialPromptEl.classList.remove('hidden');
+            updatePlayButtonDisplay(false);
+        }
+
+        function loadSong() {
+            isPlayingFullSong = false;
+            if (playbackTimeoutId) { clearTimeout(playbackTimeoutId); playbackTimeoutId = null; }
+            if (progressBarAnimationId) { cancelAnimationFrame(progressBarAnimationId); progressBarAnimationId = null; } // Stop animation loop
+            if (audioPlayer && !audioPlayer.paused) { audioPlayer.pause(); }
+            audioPlayer.onended = null;
+            audioPlayer.currentTime = 0;
+            currentPlaybackMaxDurationMs = 0; // Reset max duration before updating progress bar
+            updateProgressBarLogic(); // Update bar to 0%
+
+            if (currentSongIndex >= shuffledSongs.length) { endGame(); return; }
+            currentHintLevel = 0; currentGuessAttempt = 0; createGuessAttemptBoxes();
+            updatePlayButtonDisplay(false); clearGuessInput(); enableAllControls();
+            initialPromptEl.textContent = "Guess the song! Tap play or type your guess.";
+            initialPromptEl.classList.remove('hidden');
+            displayMessage("", "info");
+            nextSongButton.classList.add('hidden');
+            playPauseButton.disabled = false;
+        }
+
+        function updatePlayButtonDisplay(isPlaying) {
+            if (isPlaying) {
+                playPauseButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-pause-fill" viewBox="0 0 16 16"><path d="M5.5 3.5A1.5 1.5 0 0 1 7 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5zm5 0A1.5 1.5 0 0 1 12 5v6a1.5 1.5 0 0 1-3 0V5a1.5 1.5 0 0 1 1.5-1.5z"/></svg>`;
+                playPauseButton.title = "Pause";
+            } else {
+                playPauseButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" fill="currentColor" class="bi bi-play-fill" viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>`;
+                playPauseButton.title = isPlayingFullSong ? "Play Full Song" : "Play Snippet";
+            }
+        }
+
+        function togglePlayPauseSnippet() {
+            if (isPlayingFullSong) {
+                if (audioPlayer.paused) {
+                    audioPlayer.play().then(() => {
+                        updatePlayButtonDisplay(true);
+                        startProgressBarAnimation(); // Resume animation
+                    }).catch(err => {
+                        console.error("Error resuming full song:", err);
+                        displayMessage("Error playing audio.", "error");
+                    });
+                } else {
+                    audioPlayer.pause(); // Animation loop will stop itself via its own check
+                    updatePlayButtonDisplay(false);
+                }
+            } else { // Snippet mode
+                if (!audioPlayer.paused) {
+                    manualPauseSnippet(); // This calls pause, loop stops.
+                } else {
+                    playNewSnippet(); // This will call startProgressBarAnimation
+                }
+            }
+        }
+
+        function manualPauseSnippet() {
+            if (playbackTimeoutId) { clearTimeout(playbackTimeoutId); playbackTimeoutId = null; }
+            if (!audioPlayer.paused) audioPlayer.pause(); // Animation loop will stop
+            console.log("Snippet manually paused by user or action.");
+            updatePlayButtonDisplay(false);
+            playPauseButton.disabled = false;
+            updateProgressBarLogic(); // Ensure final bar position is set
+        }
+
+        async function playNewSnippet() {
+            playPauseButton.disabled = true;
+            initialPromptEl.classList.add('hidden');
+            if (playbackTimeoutId) { clearTimeout(playbackTimeoutId); playbackTimeoutId = null; }
+            if (!audioPlayer.paused) audioPlayer.pause();
+
+            audioPlayer.currentTime = 0;
+            updateProgressBarLogic(); // Ensure bar is at 0 before play
+
+            const song = shuffledSongs[currentSongIndex];
+            if (!song || currentHintLevel >= song.hintDurations.length) {
+                console.error("No song available or maximum hint level reached for snippets.");
+                playPauseButton.disabled = false; updatePlayButtonDisplay(false);
+                initialPromptEl.classList.remove('hidden'); return;
+            }
+            currentPlaybackMaxDurationMs = song.hintDurations[currentHintLevel];
+            const newAudioSrc = new URL(song.audioSrc, window.location.href).href;
+            if (audioPlayer.currentSrc !== newAudioSrc) {
+                 audioPlayer.src = song.audioSrc;
+                 try {
+                     await new Promise((resolve, reject) => {
+                        audioPlayer.onloadedmetadata = resolve;
+                        audioPlayer.onerror = (e) => reject(new Error("Error loading audio file: " + song.audioSrc));
+                     });
+                 } catch (err) {
+                     console.error("Audio load promise error:", err); displayMessage(err.message, "error");
+                     playPauseButton.disabled = false; updatePlayButtonDisplay(false);
+                     initialPromptEl.classList.remove('hidden'); return;
+                 }
+            }
+            try {
+                await audioPlayer.play();
+                console.log(`Playing snippet: ${song.audioSrc} for ${currentPlaybackMaxDurationMs}ms (Hint level: ${currentHintLevel})`);
+                updatePlayButtonDisplay(true); playPauseButton.disabled = false;
+                startProgressBarAnimation(); // Start smooth updates
+                playbackTimeoutId = setTimeout(() => {
+                    if (!audioPlayer.paused) {
+                        audioPlayer.pause(); // Animation loop will stop
+                        console.log("Snippet auto-paused after duration.");
+                        updatePlayButtonDisplay(false);
+                        updateProgressBarLogic(); // Ensure final bar position
+                    }
+                }, currentPlaybackMaxDurationMs);
+            } catch (err) {
+                console.error("Error playing audio snippet:", err);
+                displayMessage(`Error playing snippet: ${err.message}`, "error");
+                playPauseButton.disabled = false; updatePlayButtonDisplay(false);
+                initialPromptEl.classList.remove('hidden');
+            }
+        }
+
+        function playFullSong(song) {
+            isPlayingFullSong = true;
+            currentPlaybackMaxDurationMs = 0;
+            updateProgressBarLogic(); // Reset bar for full song potentially
+
+            if (playbackTimeoutId) { clearTimeout(playbackTimeoutId); playbackTimeoutId = null; }
+            const fullSongSrc = new URL(song.audioSrc, window.location.href).href;
+            if (audioPlayer.currentSrc !== fullSongSrc) audioPlayer.src = song.audioSrc;
+            audioPlayer.currentTime = 0;
+            audioPlayer.loop = false;
+
+            audioPlayer.play()
+                .then(() => {
+                    console.log("Playing full song:", song.audioSrc);
+                    updatePlayButtonDisplay(true); playPauseButton.disabled = false;
+                    initialPromptEl.classList.add('hidden');
+                    startProgressBarAnimation(); // Start smooth updates
+                })
+                .catch(err => {
+                    console.error("Error playing full song:", err);
+                    displayMessage(`Error playing full song: ${err.message}`, "error");
+                    updatePlayButtonDisplay(false); isPlayingFullSong = false;
+                });
+            audioPlayer.onended = () => {
+                console.log("Full song finished.");
+                updatePlayButtonDisplay(false); isPlayingFullSong = false;
+                // Animation loop stops itself, then updateProgressBarLogic will set to 100%
+                updateProgressBarLogic();
+            };
+        }
+
+        /**
+         * The core logic to calculate and set the progress bar's width.
+         */
+        function updateProgressBarLogic() {
+            if (!audioPlayer || audioPlayer.readyState < 2) {
+                progressBar.style.width = '0%';
+                return;
+            }
+            let percentage = 0;
+            if (isPlayingFullSong) {
+                if (audioPlayer.duration && !isNaN(audioPlayer.duration) && audioPlayer.duration > 0) {
+                    percentage = (audioPlayer.currentTime / audioPlayer.duration) * 100;
+                } else if (audioPlayer.ended) {
+                     percentage = 100; // Ensure 100% if ended, even if duration was odd
+                }
+                // If currentTime is 0, percentage will be 0.
+            } else { // Snippet mode
+                if (currentPlaybackMaxDurationMs > 0) {
+                    // Ensure currentTime doesn't exceed the snippet's intended play time for calculation
+                    const effectiveSnippetTime = Math.min(audioPlayer.currentTime * 1000, currentPlaybackMaxDurationMs);
+                    percentage = (effectiveSnippetTime / currentPlaybackMaxDurationMs) * 100;
+                }
+                // If currentPlaybackMaxDurationMs is 0 or currentTime is 0, percentage remains 0.
+            }
+            progressBar.style.width = Math.min(100, Math.max(0, percentage)) + '%';
+        }
+
+        /**
+         * Animation loop for smooth progress bar updates.
+         */
+        function animationLoop() {
+            if (audioPlayer.paused || audioPlayer.ended) {
+                updateProgressBarLogic(); // Perform one final update
+                if (progressBarAnimationId) {
+                    cancelAnimationFrame(progressBarAnimationId);
+                    progressBarAnimationId = null;
+                }
+                return;
+            }
+            updateProgressBarLogic();
+            progressBarAnimationId = requestAnimationFrame(animationLoop);
+        }
+
+        /**
+         * Starts the progress bar animation loop.
+         */
+        function startProgressBarAnimation() {
+            if (progressBarAnimationId) { // Cancel any existing loop
+                cancelAnimationFrame(progressBarAnimationId);
+            }
+            animationLoop(); // Start a new one
+        }
+
+
+        function handleSkip() {
+            manualPauseSnippet(); // Stops audio, animation loop will stop.
+            const song = shuffledSongs[currentSongIndex]; if (!song) { return; }
+            updateGuessAttemptBox(currentGuessAttempt, 'skipped', "SKIP");
+            currentGuessAttempt++;
+            if (currentGuessAttempt >= NUM_GUESSES_ALLOWED || currentHintLevel >= song.hintDurations.length -1) {
+                 revealAnswer(); return;
+            }
+            currentHintLevel++;
+            displayMessage(`Skipped! Playing next snippet... (${song.hintDurations[currentHintLevel]/1000}s)`, "info");
+            playNewSnippet(); // Will start new animation.
+        }
+
+        function handleSubmitGuess() {
+            manualPauseSnippet(); // Stops audio, animation loop will stop.
+            hideAutocomplete();
+            const guessedTitle = guessInput.value;
+            const currentSong = shuffledSongs[currentSongIndex];
+            if (!currentSong) { console.error("No current song to guess against."); return; }
+            const normalizedGuessedTitle = normalizeString(guessedTitle);
+            const normalizedCurrentSongTitle = normalizeString(currentSong.title);
+            const normalizedCurrentSongSource = normalizeString(currentSong.source);
+            if (normalizedGuessedTitle === "") { displayMessage("Please enter a song title guess!", "info"); return; }
+            let guessStatus = 'incorrect';
+            if (normalizedGuessedTitle === normalizedCurrentSongTitle) {
+                guessStatus = 'correct';
+            } else {
+                const isPartialMatch = masterSongList.some(song =>
+                    normalizeString(song.title) === normalizedGuessedTitle &&
+                    normalizeString(song.source) === normalizedCurrentSongSource
+                );
+                if (isPartialMatch) { guessStatus = 'partial'; }
+            }
+            updateGuessAttemptBox(currentGuessAttempt, guessStatus, guessedTitle);
+            if (guessStatus === 'correct') {
+                const pointsEarned = Math.max(0, 10 - (currentGuessAttempt * 2));
+                score += pointsEarned; updateScoreDisplay();
+                displayMessage(`Correct! It was "${currentSong.title}". Playing full song...`, 'success');
+                guessInput.disabled = true; submitGuessButton.disabled = true; skipButton.disabled = true;
+                playFullSong(currentSong); // Will start new animation.
+                showNextSongButton();
+            } else {
+                currentGuessAttempt++;
+                if (currentGuessAttempt >= NUM_GUESSES_ALLOWED) {
+                    revealAnswer();
+                } else {
+                    currentHintLevel++;
+                    if (currentHintLevel >= currentSong.hintDurations.length) { currentHintLevel = currentSong.hintDurations.length - 1; }
+                    if (guessStatus === 'partial') { displayMessage(`Not this song, but it IS from "${currentSong.source}"! Playing more...`, 'info');}
+                    else { displayMessage("Incorrect guess. Playing a longer snippet...", 'error'); }
+                    playNewSnippet(); // Will start new animation.
+                }
+            }
+            clearGuessInput();
+        }
+
+        function revealAnswer() {
+            manualPauseSnippet(); // Stop any current snippet
+
+            const song = shuffledSongs[currentSongIndex];
+            if (!song) {
+                console.warn("Reveal answer called but no current song.");
+                return;
+            }
+
+            displayMessage(`Sorry, the song was: "${song.title}" from "${song.source}". Playing it for you...`, 'reveal');
+
+            // Play the full song
+            playFullSong(song); // This will set isPlayingFullSong = true and enable playPauseButton
+
+            // Disable other game controls but allow full song playback control
+            guessInput.disabled = true;
+            submitGuessButton.disabled = true;
+            skipButton.disabled = true;
+            hideAutocomplete();
+            // playPauseButton is handled by playFullSong and its own logic, so it should remain enabled.
+
+            showNextSongButton();
+        }
+
+        function updateScoreDisplay() { scoreDisplayEl.textContent = `Score: ${score}`; }
+        function displayMessage(message, type = 'info') {
+            messageAreaEl.textContent = message; messageAreaEl.className = 'text-center my-4 h-6';
+            if (type === 'success') messageAreaEl.classList.add('success');
+            else if (type === 'error') messageAreaEl.classList.add('error');
+            else if (type === 'reveal') messageAreaEl.classList.add('reveal');
+            else messageAreaEl.classList.add('text-gray-400');
+        }
+        function clearGuessInput() { guessInput.value = ""; }
+
+        function enableAllControls() {
+            if (shuffledSongs.length > 0 && !isPlayingFullSong) {
+                guessInput.disabled = false; submitGuessButton.disabled = false;
+                skipButton.disabled = false; playPauseButton.disabled = false;
+            } else if (isPlayingFullSong) { // This case handles when full song is playing (correct guess or reveal)
+                guessInput.disabled = true; submitGuessButton.disabled = true;
+                skipButton.disabled = true; playPauseButton.disabled = false; // playPauseButton remains enabled
+            } else { disableAllControls(); }
+        }
+        function disableAllControls() { // This is a general disable, specific states are set elsewhere like in revealAnswer
+            guessInput.disabled = true; submitGuessButton.disabled = true;
+            skipButton.disabled = true;
+            // If not playing full song (e.g. between songs, or error state), disable play/pause
+            if (!isPlayingFullSong) {
+                playPauseButton.disabled = true;
+            }
+            hideAutocomplete();
+        }
+        function showNextSongButton() { nextSongButton.classList.remove('hidden'); playAgainButton.classList.add('hidden'); }
+        function handleNextSong() { currentSongIndex++; loadSong(); } // loadSong stops animation.
+        function endGame() {
+            isPlayingFullSong = false;
+            if (progressBarAnimationId) { cancelAnimationFrame(progressBarAnimationId); progressBarAnimationId = null; } // Stop animation
+            updateProgressBarLogic(); // Final update
+            displayMessage(`Show's Over! Your Final Score: ${score}`, 'final');
+            messageAreaEl.classList.remove('success','error','reveal','text-gray-400'); messageAreaEl.classList.add('text-yellow-300', 'text-xl', 'font-semibold');
+            disableAllControls(); nextSongButton.classList.add('hidden'); playAgainButton.classList.remove('hidden');
+        }
+
+        function showAutocomplete(matches) {
+            autocompleteDropdown.innerHTML = '';
+            if (matches.length === 0) { hideAutocomplete(); return; }
+            matches.forEach(song => {
+                const item = document.createElement('div'); item.classList.add('autocomplete-item');
+                item.innerHTML = `<span class="song-title">${song.title}</span> <span class="song-source">(${song.source})</span>`;
+                item.addEventListener('click', () => { guessInput.value = song.title; hideAutocomplete(); guessInput.focus(); });
+                autocompleteDropdown.appendChild(item);
+            });
+            autocompleteDropdown.classList.remove('hidden');
+        }
+        function hideAutocomplete() { autocompleteDropdown.classList.add('hidden'); autocompleteDropdown.innerHTML = ''; }
+
+        guessInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim(); const normalizedQuery = normalizeString(query);
+            if (normalizedQuery.length < 1) { hideAutocomplete(); return; }
+            let matches = [];
+            const exactMusicalMatch = availableMusicals.find(m => normalizeString(m) === normalizedQuery);
+            if (exactMusicalMatch) { matches = masterSongList.filter(song => normalizeString(song.source) === normalizedQuery); }
+            else { matches = masterSongList.filter(song => normalizeString(song.title).includes(normalizedQuery) || normalizeString(song.source).includes(normalizedQuery));}
+            showAutocomplete(matches);
+        });
+        document.addEventListener('click', (e) => {
+            if (!guessInput.contains(e.target) && !autocompleteDropdown.contains(e.target) && !e.target.classList.contains('autocomplete-item')) { hideAutocomplete(); }
+        });
+        guessInput.addEventListener('keydown', (e) => { if (e.key === "Escape") { hideAutocomplete(); } });
+
+        playPauseButton.addEventListener('click', togglePlayPauseSnippet);
+        skipButton.addEventListener('click', handleSkip);
+        submitGuessButton.addEventListener('click', handleSubmitGuess);
+        guessInput.addEventListener('keypress', (event) => { if (event.key === 'Enter' && !submitGuessButton.disabled) handleSubmitGuess(); });
+        nextSongButton.addEventListener('click', handleNextSong);
+        playAgainButton.addEventListener('click', prepareAndStartGame);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            createGuessAttemptBoxes();
+            disableAllControls();
+            // REMOVED: audioPlayer.addEventListener('timeupdate', updateProgressBarLogic);
+            audioPlayer.addEventListener('loadeddata', () => {
+                updateProgressBarLogic(); // Update bar based on newly loaded data
+            });
+            loadSongsFromFolder();
+        });
+    </script>
+</body>
+</html>

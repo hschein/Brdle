@@ -1,0 +1,12 @@
+# Ignore audio files (Copyright protection)
+*.mp3
+*.wav
+*.ogg
+*.m4a
+songs/
+
+# Ignore system files
+.DS_Store
+Thumbs.db
+
+launch.command
